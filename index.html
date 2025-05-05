@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<head>
+    <style>
+        body {
+            background: #080808;
+            color: #ddd;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 1em;
+        }
+        .typingindicator {
+            display: inline-block;
+            background-color: #1e1e1e;
+            border-radius: 6px;
+            padding: 6px 12px;
+            margin: 4px;
+            font-size: 10pt;
+            font-style: italic;
+            color: #777;
+            animation: typingindicator 4s linear infinite;
+        }
+        @keyframes typingindicator {
+            50% {
+                opacity: 0.7;
+            }
+        }
+        textarea#msg {
+            padding: 10px;
+            line-height: 20px;
+            font-size: 16px;
+            border: 1px solid #242424;
+            border-radius: 5px;
+            background: #363636;
+            color: #ddd;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            outline: none;
+        }
+        ul#chat {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            list-style: none;
+            padding: 0;
+            margin-top: 1em;
+        }
+        ul#chat li {
+            display: inline-block;
+            line-height: 13px;
+            white-space: pre;
+            background: #1e1e1e;
+            color: #ddd;
+            padding: 0.6em;
+            margin-bottom: 0.25em;
+            border-radius: 6px;
+        }
+        ul#chat img {
+            border-radius: 7px;
+            max-width: 200px;
+            display: block;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<html>
+<body>
+    <div id="userCount">Users online: 0</div>
+    <div id="typing-indicators" style="top: 10px; left: 10px; z-index: 1000;"></div>
+    <textarea id="msg" placeholder="Type..." autofocus style="padding:10px; font-size:16px; border:1px solid #444; border-radius:8px; background:#222; color:#eee; box-shadow:0 2px 5px rgba(0,0,0,0.5); outline:none; min-height: 50px;"></textarea>
+    <ul id="chat"></ul>
+    <script src="https://cdn.jsdelivr.net/npm/js-md5/build/md5.min.js"></script>
+    <script>
+const group = window.location.pathname;
+const ws = new WebSocket('ws://' + location.hostname + ':8765' + group);
+const colors = ['teal', 'red', 'blue', 'green', 'gold', 'purple', 'orange', 'aquamarine', 'coral']
+const animals = ['dog', 'cat', 'elephant', 'lion', 'rabbit', 'bird', 'dragon', 'hedgehog']
+let myuid;
+
+if (group != "/") {
+    const groupHeader = document.createElement('div');
+    groupHeader.textContent = group;
+    groupHeader.style.color = '#fff';
+    groupHeader.style.opacity = 0.5;
+    groupHeader.style.fontSize = '20px';
+    document.body.insertBefore(groupHeader, document.body.firstChild);
+}
+
+function sendws(message) {ws.send(JSON.stringify(message));}
+
+// START VC FUNCTIONALITY //
+// const config = {
+//   iceServers: [
+//     {
+//       urls: "stun:stun.l.google.com:19302"
+//     }
+//   ]
+// };
+
+// let peerConnection;
+// let localStream;
+// let remoteStream;
+
+// async function getUserAudio() {
+//     try {
+//         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+//         return stream;
+//     } catch (err) {
+//         console.error("Error accessing microphone: ", err);
+//     }
+// }
+
+// async function createPeerConnection() {
+//     peerConnection = new RTCPeerConnection(config);
+//     localStream = await getUserAudio();
+//     localStream.getTracks().forEach(track => {
+//         peerConnection.addTrack(track, localStream);
+//     });
+
+//     remoteStream = new MediaStream();
+//     peerConnection.ontrack = (event) => {
+//         remoteStream.addTrack(event.track);
+//         const audioElement = document.createElement("audio");
+//         audioElement.srcObject = remoteStream;
+//         audioElement.play();
+//     };
+
+//     peerConnection.onicecandidate = event => {
+//         if (event.candidate) {
+//             sendws({ type: 'icecandidate', candidate: event.candidate });
+//         }
+//     };
+// }
+
+// async function createOffer() {
+//     const offer = await peerConnection.createOffer();
+//     await peerConnection.setLocalDescription(offer);
+    
+//     sendws({ type: 'offer', offer: offer });
+// }
+
+// async function createAnswer(offer) {
+//     if (peerConnection.signalingState != "have-local-offer") { return; }
+//     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+//     const answer = await peerConnection.createAnswer();
+//     await peerConnection.setLocalDescription(answer);
+
+//     sendws({ type: 'answer', answer: answer });
+// }
+
+// function handleIceCandidate(candidate) {
+//     peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+// }
+
+// ws.onopen = () => {handlestart();}
+// async function handlestart() {
+//     console.log("connection started");
+//     await createPeerConnection();
+//     await createOffer();
+// }
+
+// END VC FUNCTIONALITY //
+
+function getColorAnimal(uid) {
+    const idx = Array.from(uid).reduce((a, c) =>
+    a + c.charCodeAt(0), 0) % colors.length;
+    return [colors[idx], animals[idx % animals.length]]
+}
+
+async function extractImageLinks(text) {
+    const links = [...text.matchAll(/https?:\/\/\S+/g)].map(m => m[0]);
+    const imageLinks = [];
+    const youtubeLinks = [];
+    
+    const checkImage = (url) => {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve(url);     // It's an image
+            img.onerror = () => resolve(null);   // Not an image or blocked by CORS
+            img.src = url;
+        });
+    };
+
+    for (const url of links) {
+        if (/(youtube\.com\/watch\?v=|youtu\.be\/)/.test(url)) {
+            youtubeLinks.push(url);
+        } else {
+            const result = await checkImage(url);
+            if (result) imageLinks.push(result);
+        }
+    }
+    let cleaned = text;
+    [...imageLinks, ...youtubeLinks].forEach(link => {
+        cleaned = cleaned.replace(link, "").trim();
+    });
+
+    return { message: cleaned, links: imageLinks , ytlinks: youtubeLinks};
+}
+
+// Generate deterministic color-animal pair
+function makemsghead(uid) {
+    const [col, an] = getColorAnimal(uid);
+    return `<span style="color:${col}; font-family: mono;">${col}-${an}</span> `;
+}
+
+ws.onmessage = e => {handlemessage(e);}
+async function handlemessage(e) {
+    const data = JSON.parse(e.data);
+    // if (data.type === 'offer') {
+    //     if (data.uid != myuid) { createAnswer(); }
+    // }
+    // else if (data.type === 'answer') {
+    //     if (data.uid != myuid) { 
+    //         peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+    //     }
+    // } else if (data.type === 'icecandidate') {handleIceCandidate(data.candidate);}
+    if (data.type === "user_count") {
+        document.getElementById('userCount').innerText = ` Users online: ${data.count}`;
+        document.getElementById('userCount').style.opacity = 0.5;
+    } else if (data.type === "uid") { myuid = data.uid; }
+    else if (data.type === "join") {
+        const li = document.createElement('li');
+        li.innerHTML = `<em>${makemsghead(data.uid)} joined</em>`;
+        const ul = document.getElementById('chat');
+        ul.insertBefore(li, ul.firstChild);
+        // if (data.uid != myuid) { await createOffer(); }
+    } else if (data.type === "chat") { await handlechatmsg(data); }
+}
+
+async function handlechatmsg(data) {
+    const li = document.createElement('li');
+    const prefix = document.createElement('span');
+    const messageDiv = document.createElement('div');
+    messageDiv.style.display = 'inline';
+    prefix.innerHTML = `${makemsghead(data.uid)}${data.messagecount > 10 ? "+ " : ""} <span style="opacity: 0.3;">says:</span> `;
+    const attachmentsDiv = document.createElement('div');
+    attachmentsDiv.style.marginTop = '4px';
+    attachmentsDiv.style.display = 'block';
+
+    // Append prefix and message div to the list item
+    li.appendChild(prefix);
+    li.appendChild(messageDiv);
+    li.appendChild(attachmentsDiv);
+
+    const { message, links, ytlinks } = await extractImageLinks(data.message);
+    messageDiv.textContent = message;
+    
+    const ul = document.getElementById('chat');
+    ul.insertBefore(li, ul.firstChild);
+    
+    if (links && links.length > 0) {
+        links.forEach(link => {
+            const img = document.createElement('img');
+            img.src = link;
+            img.style.display = 'inline-block';
+
+            img.onmouseover = () => {img.style.boxShadow = '0 0 4px #fff';};
+            img.onmouseout = () => {img.style.boxShadow = 'none';};
+            img.onclick = () => {window.open(link, '_blank');};
+            attachmentsDiv.appendChild(img);
+        });
+    }
+    if (ytlinks && ytlinks.length > 0) {
+        ytlinks.forEach(link => {
+            let videoId = null;
+
+            const matchStandard = link.match(/v=([a-zA-Z0-9_-]{11})/);
+            const matchShort = link.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+
+            if (matchStandard) videoId = matchStandard[1];
+            else if (matchShort) videoId = matchShort[1];
+
+            if (videoId) {
+                const iframe = document.createElement('iframe');
+                iframe.src = `https://www.youtube.com/embed/${videoId}`;
+                iframe.width = '300';
+                iframe.height = '169';
+                iframe.frameBorder = '0';
+                iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+                iframe.allowFullscreen = true;
+                iframe.onmouseover = () => {iframe.style.boxShadow = '0 0 4px #fff';};
+                iframe.onmouseout = () => {iframe.style.boxShadow = 'none';};
+                iframe.onclick = () => {window.open(link, '_blank');};
+                attachmentsDiv.appendChild(iframe);
+            }
+        });
+    }
+    document.querySelectorAll('.typingindicator').forEach(el => el.remove());
+    data.typing.forEach(uid => {
+        const typingElement = document.createElement('div');
+        typingElement.className = 'typingindicator';
+        typingElement.innerHTML = `<span style="font-size: 10pt;">${makemsghead(uid)} is typing... </span>`;
+        document.getElementById('typing-indicators').appendChild(typingElement);
+    });
+}
+
+function getTopmostChatItem() {
+  const lis = document.querySelectorAll('#chat li');
+  if (lis.length === 0) return null;
+
+  let topmost = lis[0];
+  let minTop = topmost.getBoundingClientRect().top;
+
+  lis.forEach(li => {
+    const top = li.getBoundingClientRect().top;
+    if (top < minTop) {
+      minTop = top;
+      topmost = li;
+    }
+  });
+
+  const input = document.getElementById('msg');
+  const text = "> " + topmost.children[1].textContent.replace(/\n/g, "\n> ") + "\n";
+  input.value = text;
+  setTimeout(() => {
+    input.selectionStart = input.selectionEnd = input.value.length;
+  }, 0);
+}
+
+let typingTimeout = null;
+document.getElementById('msg').onkeydown = e => {
+    const input = e.target;
+    const text = input.value;
+    if (e.key === 'ArrowUp' && text === '') {getTopmostChatItem();}
+    else if (e.key === 'Enter' && text && !e.shiftKey) {
+        e.preventDefault();
+        sendws({ type: "chat", groupname: group, message: text });
+        input.value = '';
+        typingTimeout = null;
+    }
+    else if (e.key === 'Enter' && e.shiftKey) {input.value += '\n';}
+};
+
+// Send message to the server when the user types (after 10 seconds of inactivity)
+document.getElementById('msg').addEventListener('input', () => {
+    if (!typingTimeout) {
+        sendws({type: 'typing', groupname: group});
+        typingTimeout = setTimeout(() => {}, 5000);
+    }
+});
+
+    </script>
+</body>
+</html>
