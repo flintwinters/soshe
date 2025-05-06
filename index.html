@@ -1,7 +1,11 @@
 <!DOCTYPE html>
 <head>
     <style>
-    body {
+    html, body {
+        height: 100%;
+        width: 50%;
+        display: flex;
+        flex-direction: column;
         background: #080808;
         color: #ddd;
         font-family: sans-serif;
@@ -42,10 +46,11 @@
         list-style: none;
         padding: 0;
         margin-top: 1em;
+        flex: 1; /* Grow to fill space between header and footer */
     }
     ul#chat li {
         display: inline-block;
-        line-height: 13px;
+        line-height: 20px;
         white-space: pre;
         background: #1e1e1e;
         color: #ddd;
@@ -66,7 +71,17 @@
         gap: 4px;
         margin-top: 8px;
     }
+    .chat-iframe {
+        width: 300px;
+        height: 169px;
+        border: 0;
+        box-shadow: none;
+        transition: box-shadow 0.2s ease-in-out;
+    }
 
+    .chat-iframe:hover {
+        box-shadow: 0 0 4px #fff;
+    }
     .ttt-cell {
         width: 40px;
         height: 40px;
@@ -84,29 +99,75 @@
     .ttt-cell:hover {
         background-color: #fff5;
     }
+    .footer {
+        position: sticky;
+        bottom: 0;
+        text-align: center;
+        line-height: 20px;
+        white-space: pre;
+        background: #1e1e1e;
+        color: #ddd;
+        padding: 0.6em;
+        margin-bottom: 0.25em;
+        border-radius: 6px;
+    }
+    button {
+        background-color: #222;
+        color: #eee;
+        border: 1px solid #444;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 10px;
+    }
+
+    button:hover {
+        background-color: #333;
+        border-color: #666;
+    }
     </style>
 </head>
 <html>
 <body>
+    <div id="info" style="display: flex; flex-direction: column;"></div>
     <div id="userCount">Users online: 0</div>
     <div id="typing-indicators" style="top: 10px; left: 10px; z-index: 1000;"></div>
     <textarea id="msg" placeholder="Type..." autofocus style="padding:10px; font-size:16px; border:1px solid #444; border-radius:8px; background:#222; color:#eee; box-shadow:0 2px 5px rgba(0,0,0,0.5); outline:none; min-height: 50px;"></textarea>
     <ul id="chat"></ul>
-    <script src="https://cdn.jsdelivr.net/npm/js-md5/build/md5.min.js"></script>
+    <footer class="footer"><a href="https://github.com/flintwinters/soshe/" target="_blank">github</a></footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
     <script>
 const group = window.location.pathname;
 const ws = new WebSocket('ws://' + location.hostname + ':8765' + group);
 const colors = ['teal', 'red', 'blue', 'green', 'gold', 'purple', 'orange', 'aquamarine', 'coral']
 const animals = ['dog', 'cat', 'elephant', 'lion', 'rabbit', 'bird', 'dragon', 'hedgehog']
 let myuid;
+const button = document.createElement("div");
+button.style.display = "inline-block";
+button.style.cursor = "pointer";
+button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dices-icon lucide-dices"><rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/></svg> `;
+
+button.onclick = () => {
+    const timestamp = Math.floor(Date.now()).toString();
+    const hash = md5(timestamp);
+    const url = window.location.origin + "/" + hash;
+    console.log(url);
+    const newTab = window.open(url, '_blank');
+    if (newTab) {
+      newTab.focus();
+    }
+    sendws({ type: "newroom", groupname: group, message: url, data: {} });
+};
+document.getElementById("info").append(button);
 
 if (group != "/") {
     const groupHeader = document.createElement('div');
+    groupHeader.style.display = "inline-block";
     groupHeader.textContent = group;
     groupHeader.style.color = '#fff';
     groupHeader.style.opacity = 0.5;
     groupHeader.style.fontSize = '20px';
-    document.body.insertBefore(groupHeader, document.body.firstChild);
+    document.getElementById("info").append(groupHeader);
 }
 
 function sendws(message) {ws.send(JSON.stringify(message));}
@@ -117,10 +178,22 @@ function getColorAnimal(uid) {
     return [colors[idx], animals[idx % animals.length]]
 }
 
+function isyoutube(url) {
+    return /(youtube\.com\/watch\?v=|youtu\.be\/)/.test(url);
+}
+
+function istumblr(url) {
+    return /tumblr\.com\/?/.test(url);
+}
+
+function ispinterest(url) {
+    return /pinterest\.com\/pin\//.test(url);
+}
+
 async function extractImageLinks(text) {
     const links = [...text.matchAll(/https?:\/\/\S+/g)].map(m => m[0]);
     const imageLinks = [];
-    const youtubeLinks = [];
+    const medialinks = [];
     
     const checkImage = (url) => {
         return new Promise(resolve => {
@@ -132,8 +205,8 @@ async function extractImageLinks(text) {
     };
 
     for (const url of links) {
-        if (/(youtube\.com\/watch\?v=|youtu\.be\/)/.test(url)) {
-            youtubeLinks.push(url);
+        if (isyoutube(url) || istumblr(url) || ispinterest(url)) {
+            medialinks.push(url);
         } else {
             const result = await checkImage(url);
             if (result) imageLinks.push(result);
@@ -141,7 +214,7 @@ async function extractImageLinks(text) {
     }
     // Remove known embed links
     let cleaned = text;
-    const removedLinks = [...imageLinks, ...youtubeLinks];
+    const removedLinks = [...imageLinks, ...medialinks];
     removedLinks.forEach(link => {
         cleaned = cleaned.replace(link, "").trim();
     });
@@ -153,7 +226,7 @@ async function extractImageLinks(text) {
         cleaned = cleaned.replace(link, linkHTML);
     });
 
-    return { message: cleaned, links: imageLinks , ytlinks: youtubeLinks};
+    return { message: cleaned, links: imageLinks , medialinks: medialinks};
 }
 
 // Generate deterministic color-animal pair
@@ -169,6 +242,12 @@ async function handlemessage(e) {
         document.getElementById('userCount').innerText = ` Users online: ${data.count}`;
         document.getElementById('userCount').style.opacity = 0.5;
     } else if (data.type === "uid") { myuid = data.uid; }
+    else if (data.type === "newroom") {
+        let li = await createChatListItem(data, data.message);
+        const prefix = li.querySelector('.chat-prefix');
+        prefix.innerHTML += `<span style="opacity: 0.3;">moved to:</span> `;
+
+    }
     else if (data.type === "command") {
         let msg = data.message;
 
@@ -187,6 +266,7 @@ async function handlemessage(e) {
                 data.data.turn = 0;
 
                 const li = document.createElement('li');
+                li.dataset.mid = data.mid;
                 li.dataset.game = JSON.stringify(data.data);
 
                 const prefix = document.createElement('span');
@@ -274,32 +354,33 @@ async function handlemessage(e) {
         li.innerHTML = `<em>${makemsghead(data.uid)} joined</em>`;
         const ul = document.getElementById('chat');
         ul.insertBefore(li, ul.firstChild);
-        // if (data.uid != myuid) { await createOffer(); }
     } else if (data.type === "chat") { await handlechatmsg(data); }
 }
 
-async function handlechatmsg(data) {
+async function createChatListItem(data, innerHTML = '') {
     const li = document.createElement('li');
-    li.dataset.mid = data.mid;
     const prefix = document.createElement('span');
     const messageDiv = document.createElement('div');
-    messageDiv.style.display = 'inline';
-    prefix.innerHTML = `${makemsghead(data.uid)}${data.messagecount > 10 ? "+ " : ""} <span style="opacity: 0.3;">says:</span> `;
     const attachmentsDiv = document.createElement('div');
+    prefix.className = 'chat-prefix';
+    li.dataset.mid = data.mid;
+    messageDiv.style.display = 'inline';
+    let head = makemsghead(data.uid);
+    prefix.innerHTML = head + (data.messagecount > 10 ? "+ " : "");
     attachmentsDiv.style.marginTop = '4px';
     attachmentsDiv.style.display = 'block';
+
+    const { message, links, medialinks } = await extractImageLinks(innerHTML);
+    messageDiv.innerHTML = message;
 
     // Append prefix and message div to the list item
     li.appendChild(prefix);
     li.appendChild(messageDiv);
     li.appendChild(attachmentsDiv);
 
-    const { message, links, ytlinks } = await extractImageLinks(data.message);
-    messageDiv.innerHTML = message;
-    
     const ul = document.getElementById('chat');
     ul.insertBefore(li, ul.firstChild);
-    
+
     if (links && links.length > 0) {
         links.forEach(link => {
             const img = document.createElement('img');
@@ -312,31 +393,79 @@ async function handlechatmsg(data) {
             attachmentsDiv.appendChild(img);
         });
     }
-    if (ytlinks && ytlinks.length > 0) {
-        ytlinks.forEach(link => {
+    if (medialinks && medialinks.length > 0) {
+        medialinks.forEach(link => {
+            let embedurl = link;
             let videoId = null;
 
             const matchStandard = link.match(/v=([a-zA-Z0-9_-]{11})/);
-            const matchShort = link.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-
-            if (matchStandard) videoId = matchStandard[1];
-            else if (matchShort) videoId = matchShort[1];
-
-            if (videoId) {
+            if (isyoutube(link)) {
+                const matchShort = link.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+                if (matchStandard) videoId = matchStandard[1];
+                else if (matchShort) videoId = matchShort[1];
+                embedurl = `https://www.youtube.com/embed/${videoId}`;
                 const iframe = document.createElement('iframe');
-                iframe.src = `https://www.youtube.com/embed/${videoId}`;
-                iframe.width = '300';
-                iframe.height = '169';
-                iframe.frameBorder = '0';
+                iframe.className = 'chat-iframe';
+                iframe.src = embedurl;
                 iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
                 iframe.allowFullscreen = true;
-                iframe.onmouseover = () => {iframe.style.boxShadow = '0 0 4px #fff';};
-                iframe.onmouseout = () => {iframe.style.boxShadow = 'none';};
                 iframe.onclick = () => {window.open(link, '_blank');};
                 attachmentsDiv.appendChild(iframe);
             }
+            else if (istumblr(link)) {
+                // const tumblrEmbedUrl = `https://embed.tumblr.com/embed/post?url=${encodeURIComponent(link)}`;
+                const tumblrEmbedUrl = link;
+                console.log(tumblrEmbedUrl);
+                // Create the Tumblr embed <div> structure
+                const embedDiv = document.createElement('div');
+                embedDiv.className = 'tumblr-post';
+                embedDiv.setAttribute('data-href', tumblrEmbedUrl);
+
+                // Create the <a> element for the post link
+                const postLink = document.createElement('a');
+                postLink.href = link;
+                postLink.innerText = link;
+                embedDiv.appendChild(postLink);
+
+                // Append the embed div to the container
+                attachmentsDiv.appendChild(embedDiv);
+
+                // Create and append the Tumblr post script tag asynchronously
+                const scriptTag = document.createElement('script');
+                scriptTag.src = 'https://assets.tumblr.com/post.js?_v=38df9a6ca7436e6ca1b851b0543b9f51';
+                scriptTag.async = true;
+                attachmentsDiv.appendChild(scriptTag);
+            }
+            else if (ispinterest(link)) {
+                // Example Pinterest Pin: https://www.pinterest.com/pin/123456789012345678/
+                const embedDiv = document.createElement('a');
+                embedDiv.setAttribute('data-pin-do', 'embedPin');
+                embedDiv.setAttribute('href', link);
+                embedDiv.setAttribute('data-pin-width', 'medium'); // or 'large' or 'small'
+                embedDiv.className = 'pinterest-embed';
+
+                attachmentsDiv.appendChild(embedDiv);
+
+                // Load Pinterest script (only once)
+                if (!document.querySelector('script[src*="assets.pinterest.com/js/pinit.js"]')) {
+                    const scriptTag = document.createElement('script');
+                    scriptTag.src = 'https://assets.pinterest.com/js/pinit.js';
+                    scriptTag.async = true;
+                    scriptTag.defer = true;
+                    document.body.appendChild(scriptTag);
+                }
+            }
+
         });
     }
+    return li;
+}
+
+async function handlechatmsg(data) {
+    const li = await createChatListItem(data, data.message);
+    const prefix = li.querySelector('.chat-prefix');
+    prefix.innerHTML += `<span style="opacity: 0.3;">says:</span> `;
+
     document.querySelectorAll('.typingindicator').forEach(el => el.remove());
     data.typing.forEach(uid => {
         const typingElement = document.createElement('div');
