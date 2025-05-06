@@ -1,65 +1,89 @@
 <!DOCTYPE html>
 <head>
     <style>
-        body {
-            background: #080808;
-            color: #ddd;
-            font-family: sans-serif;
-            margin: 0;
-            padding: 1em;
+    body {
+        background: #080808;
+        color: #ddd;
+        font-family: sans-serif;
+        margin: 0;
+        padding: 1em;
+    }
+    .typingindicator {
+        display: inline-block;
+        background-color: #1e1e1e;
+        border-radius: 6px;
+        padding: 6px 12px;
+        margin: 4px;
+        font-size: 10pt;
+        font-style: italic;
+        color: #777;
+        animation: typingindicator 4s linear infinite;
+    }
+    @keyframes typingindicator {
+        50% {
+            opacity: 0.7;
         }
-        .typingindicator {
-            display: inline-block;
-            background-color: #1e1e1e;
-            border-radius: 6px;
-            padding: 6px 12px;
-            margin: 4px;
-            font-size: 10pt;
-            font-style: italic;
-            color: #777;
-            animation: typingindicator 4s linear infinite;
-        }
-        @keyframes typingindicator {
-            50% {
-                opacity: 0.7;
-            }
-        }
-        textarea#msg {
-            padding: 10px;
-            line-height: 20px;
-            font-size: 16px;
-            border: 1px solid #242424;
-            border-radius: 5px;
-            background: #363636;
-            color: #ddd;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            outline: none;
-        }
-        ul#chat {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            list-style: none;
-            padding: 0;
-            margin-top: 1em;
-        }
-        ul#chat li {
-            display: inline-block;
-            line-height: 13px;
-            white-space: pre;
-            background: #1e1e1e;
-            color: #ddd;
-            padding: 0.6em;
-            margin-bottom: 0.25em;
-            border-radius: 6px;
-        }
-        ul#chat img {
-            border-radius: 7px;
-            max-width: 200px;
-            display: block;
-            margin-top: 5px;
-            margin-bottom: 5px;
-        }
+    }
+    textarea#msg {
+        padding: 10px;
+        line-height: 20px;
+        font-size: 16px;
+        border: 1px solid #242424;
+        border-radius: 5px;
+        background: #363636;
+        color: #ddd;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        outline: none;
+    }
+    ul#chat {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        list-style: none;
+        padding: 0;
+        margin-top: 1em;
+    }
+    ul#chat li {
+        display: inline-block;
+        line-height: 13px;
+        white-space: pre;
+        background: #1e1e1e;
+        color: #ddd;
+        padding: 0.6em;
+        margin-bottom: 0.25em;
+        border-radius: 6px;
+    }
+    ul#chat img {
+        border-radius: 7px;
+        max-width: 200px;
+        display: block;
+        margin-top: 5px;
+        margin-bottom: 5px;
+    } 
+    .ttt-board {
+        display: grid;
+        grid-template-columns: repeat(3, 40px);
+        gap: 4px;
+        margin-top: 8px;
+    }
+
+    .ttt-cell {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #ccc;
+        cursor: pointer;
+        border-radius: 4px;
+        font-weight: bold;
+        background-color: #0000;
+        transition: background-color 0.2s;
+    }
+
+    .ttt-cell:hover {
+        background-color: #fff5;
+    }
     </style>
 </head>
 <html>
@@ -86,80 +110,6 @@ if (group != "/") {
 }
 
 function sendws(message) {ws.send(JSON.stringify(message));}
-
-// START VC FUNCTIONALITY //
-// const config = {
-//   iceServers: [
-//     {
-//       urls: "stun:stun.l.google.com:19302"
-//     }
-//   ]
-// };
-
-// let peerConnection;
-// let localStream;
-// let remoteStream;
-
-// async function getUserAudio() {
-//     try {
-//         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-//         return stream;
-//     } catch (err) {
-//         console.error("Error accessing microphone: ", err);
-//     }
-// }
-
-// async function createPeerConnection() {
-//     peerConnection = new RTCPeerConnection(config);
-//     localStream = await getUserAudio();
-//     localStream.getTracks().forEach(track => {
-//         peerConnection.addTrack(track, localStream);
-//     });
-
-//     remoteStream = new MediaStream();
-//     peerConnection.ontrack = (event) => {
-//         remoteStream.addTrack(event.track);
-//         const audioElement = document.createElement("audio");
-//         audioElement.srcObject = remoteStream;
-//         audioElement.play();
-//     };
-
-//     peerConnection.onicecandidate = event => {
-//         if (event.candidate) {
-//             sendws({ type: 'icecandidate', candidate: event.candidate });
-//         }
-//     };
-// }
-
-// async function createOffer() {
-//     const offer = await peerConnection.createOffer();
-//     await peerConnection.setLocalDescription(offer);
-    
-//     sendws({ type: 'offer', offer: offer });
-// }
-
-// async function createAnswer(offer) {
-//     if (peerConnection.signalingState != "have-local-offer") { return; }
-//     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
-//     const answer = await peerConnection.createAnswer();
-//     await peerConnection.setLocalDescription(answer);
-
-//     sendws({ type: 'answer', answer: answer });
-// }
-
-// function handleIceCandidate(candidate) {
-//     peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-// }
-
-// ws.onopen = () => {handlestart();}
-// async function handlestart() {
-//     console.log("connection started");
-//     await createPeerConnection();
-//     await createOffer();
-// }
-
-// END VC FUNCTIONALITY //
 
 function getColorAnimal(uid) {
     const idx = Array.from(uid).reduce((a, c) =>
@@ -189,9 +139,18 @@ async function extractImageLinks(text) {
             if (result) imageLinks.push(result);
         }
     }
+    // Remove known embed links
     let cleaned = text;
-    [...imageLinks, ...youtubeLinks].forEach(link => {
+    const removedLinks = [...imageLinks, ...youtubeLinks];
+    removedLinks.forEach(link => {
         cleaned = cleaned.replace(link, "").trim();
+    });
+
+    // Convert remaining links to clickable <a> tags
+    const remainingLinks = links.filter(link => !removedLinks.includes(link));
+    remainingLinks.forEach(link => {
+        const linkHTML = `<a href="${link}" target="_blank" style="color: lightblue;">${link}</a>`;
+        cleaned = cleaned.replace(link, linkHTML);
     });
 
     return { message: cleaned, links: imageLinks , ytlinks: youtubeLinks};
@@ -206,20 +165,112 @@ function makemsghead(uid) {
 ws.onmessage = e => {handlemessage(e);}
 async function handlemessage(e) {
     const data = JSON.parse(e.data);
-    // if (data.type === 'offer') {
-    //     if (data.uid != myuid) { createAnswer(); }
-    // }
-    // else if (data.type === 'answer') {
-    //     if (data.uid != myuid) { 
-    //         peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-    //     }
-    // } else if (data.type === 'icecandidate') {handleIceCandidate(data.candidate);}
     if (data.type === "user_count") {
         document.getElementById('userCount').innerText = ` Users online: ${data.count}`;
         document.getElementById('userCount').style.opacity = 0.5;
     } else if (data.type === "uid") { myuid = data.uid; }
+    else if (data.type === "command") {
+        let msg = data.message;
+
+        if (msg.startsWith('/tictactoe')) {
+            console.log(data);
+
+            const boardData = msg.replace('/tictactoe', '').trim().padEnd(9, ' ');
+            const cellStates = boardData.split('').slice(0, 9);
+
+            if (!('mid' in data.data)) {
+                console.log(myuid);
+                // Create new game
+                data.data.mid = data.mid;
+                data.data.player1 = null;
+                data.data.player2 = null;
+                data.data.turn = 0;
+
+                const li = document.createElement('li');
+                li.dataset.game = JSON.stringify(data.data);
+
+                const prefix = document.createElement('span');
+                prefix.innerHTML = `${makemsghead(data.uid)} <span style="opacity: 0.3;">plays:</span>`;
+                li.appendChild(prefix);
+
+                const board = document.createElement('div');
+                board.classList.add('ttt-board');
+
+                for (let i = 0; i < 9; i++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('ttt-cell');
+                    cell.textContent = cellStates[i] === ' ' ? '' : cellStates[i];
+
+                    cell.addEventListener('click', () => {
+                        const game = JSON.parse(li.dataset.game);
+
+                        if (cellStates[i] !== ' ') return;
+
+                        if (game.turn === 0 && !game.player1) {
+                            game.player1 = myuid;
+                        } else if (game.turn === 1 && !game.player2) {
+                            game.player2 = myuid;
+                        }
+
+                        const isPlayer1Turn = game.turn % 2 === 0;
+                        const currentPlayer = isPlayer1Turn ? game.player1 : game.player2;
+                        console.log(game, myuid);
+                        if (currentPlayer !== myuid) return;
+
+                        const symbol = isPlayer1Turn ? 'X' : 'O';
+                        cellStates[i] = symbol;
+
+                        game.turn += 1;
+                        li.dataset.game = JSON.stringify(game);
+
+                        sendws({
+                            type: "command",
+                            message: "/tictactoe",
+                            data: {
+                                mid: game.mid,
+                                move: i,
+                                turn: game.turn,
+                                player1: game.player1,
+                                player2: game.player2,
+                            },
+                        });
+                    });
+
+                    board.appendChild(cell);
+                }
+
+                li.appendChild(board);
+                document.getElementById('chat').insertBefore(li, document.getElementById('chat').firstChild);
+
+            } else {
+                const allLis = document.querySelectorAll('#chat li');
+
+                for (const li of allLis) {
+                    if (!li.dataset.game) continue;
+
+                    const game = JSON.parse(li.dataset.game);
+
+                    if (game.mid === data.data.mid) {
+                        const cellIndex = data.data.move;
+                        const symbol = (data.data.turn % 2 === 1) ? 'X' : 'O';
+                        const cells = li.querySelectorAll('.ttt-cell');
+
+                        const [col, an] = getColorAnimal(data.data.turn%2 === 1 ? data.data.player1 : data.data.player2);
+                        cells[cellIndex].innerHTML = `<span style="color: ${col};">${symbol}</span>`;
+
+                        game.turn = data.data.turn;
+                        game.player1 = data.data.player1;
+                        game.player2 = data.data.player2;
+                        li.dataset.game = JSON.stringify(game);
+                    }
+                }
+            }
+        }
+
+    }
     else if (data.type === "join") {
         const li = document.createElement('li');
+        li.dataset.mid = data.mid;
         li.innerHTML = `<em>${makemsghead(data.uid)} joined</em>`;
         const ul = document.getElementById('chat');
         ul.insertBefore(li, ul.firstChild);
@@ -229,6 +280,7 @@ async function handlemessage(e) {
 
 async function handlechatmsg(data) {
     const li = document.createElement('li');
+    li.dataset.mid = data.mid;
     const prefix = document.createElement('span');
     const messageDiv = document.createElement('div');
     messageDiv.style.display = 'inline';
@@ -243,7 +295,7 @@ async function handlechatmsg(data) {
     li.appendChild(attachmentsDiv);
 
     const { message, links, ytlinks } = await extractImageLinks(data.message);
-    messageDiv.textContent = message;
+    messageDiv.innerHTML = message;
     
     const ul = document.getElementById('chat');
     ul.insertBefore(li, ul.firstChild);
@@ -324,7 +376,9 @@ document.getElementById('msg').onkeydown = e => {
     if (e.key === 'ArrowUp' && text === '') {getTopmostChatItem();}
     else if (e.key === 'Enter' && text && !e.shiftKey) {
         e.preventDefault();
-        sendws({ type: "chat", groupname: group, message: text });
+        let ty = "chat"
+        if (text[0] === "/") {ty = "command";}
+        sendws({ type: ty, groupname: group, message: text, data: {} });
         input.value = '';
         typingTimeout = null;
     }

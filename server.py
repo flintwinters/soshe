@@ -26,13 +26,13 @@ class Group:
         data["typing"] = [t.uid for t in self.typing]
         await self.rawpost(dumps(data))
     
+    async def postusercount(self):
+        await self.rawpost(dumps({"type": "user_count", "count": len(self.users)}))
+        
     async def join(self, user):
         self.users[user.ws] = user
         self.userids[user.uid] = user
         await self.rawpost(dumps({"type": "join", "uid": user.uid}))
-        
-    async def postusercount(self):
-        await self.rawpost(dumps({"type": "user_count", "count": len(self.users)}))
     
     async def pop(self, user):
         self.users.pop(user.ws)
@@ -65,6 +65,7 @@ class User:
         elif ty == 'chat':
             self.messagecount += 1
         data["uid"] = self.uid
+        data["mid"] = hashlib.md5((self.uid+str(time.time())).encode()).hexdigest()
         data["messagecount"] = self.messagecount
         return data
     
@@ -95,7 +96,8 @@ async def ws_handler(ws, path):
 
 class SinglePageHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        self.path = '/index.html'
+        if self.path != '/script.js':
+            self.path = '/index.html'
         return super().do_GET()
 
 def start_http():
